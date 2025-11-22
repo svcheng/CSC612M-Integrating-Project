@@ -23,5 +23,8 @@
     <CustomBuild Include="x86_64_scalar_kernel.asm">
       <Filter>Source Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="x86_64_simd_kernel.asm">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

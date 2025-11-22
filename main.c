@@ -1,9 +1,11 @@
-#include <stdio.h>
+ï»¿#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <windows.h>
 
 extern void x86_64_scalar_kernel(int n, int kmax, double*** trajectories);
+
+extern void x86_64_simd_kernel(int n, int kmax, double*** trajectories);
 
 /* ---------- C kernel ---------- */
 void C_kernel(int n, int kmax, double*** trajectories)
@@ -40,28 +42,45 @@ void C_kernel(int n, int kmax, double*** trajectories)
 }
 
 /* ---------- printing ---------- */
-static void print_trajectories(double*** trajectories, int kmax) {
-    for (int i = 0; i < 4; i++) {
-        printf("------------ Trajectory %d ------------\n", i + 1);
-        for (int j = 0; j < 3; j++) {
-            if (j == 0) printf("x: [");
-            if (j == 1) printf("y: [");
-            if (j == 2) printf("z: [");
+static void print_trajectories(double*** trajectories, int kmax, int n) {
+    int tmax = kmax + 1;
 
-            for (int k = 0; k < 5; k++) {
-                printf("%.6f", trajectories[k][j][i]);
-                printf(", ");
+    for (int i = 0; i < n && i < 4; i++) {   // print up to 4 trajectories
+        printf("------------ Trajectory %d ------------\n", i + 1);
+
+        for (int j = 0; j < 3; j++) {
+            printf("%c: [", (j == 0 ? 'x' : (j == 1 ? 'y' : 'z')));
+
+            if (tmax <= 5) {
+                // --- Print all values if short ---
+                for (int k = 0; k < tmax; k++) {
+                    printf("%.6f", trajectories[k][j][i]);
+                    if (k < tmax - 1) printf(", ");
+                }
             }
-            printf("..., ");
-            for (int k = kmax - 4; k < kmax + 1; k++) {
-                printf("%.6f", trajectories[k][j][i]);
-                if (k < kmax) printf(", ");
+            else {
+                // --- First 5 ---
+                for (int k = 0; k < 5; k++) {
+                    printf("%.6f", trajectories[k][j][i]);
+                    printf(", ");
+                }
+
+                printf("..., ");
+
+                // --- Last 5 ---
+                for (int k = tmax - 5; k < tmax; k++) {
+                    printf("%.6f", trajectories[k][j][i]);
+                    if (k < tmax - 1) printf(", ");
+                }
             }
+
             printf("]\n");
         }
+
         printf("\n\n");
     }
 }
+
 
 /* ---------- helpers to allocate / free (kmax+1) x 3 x n ---------- */
 static double*** alloc_tr(int kmax, int n) {
@@ -89,17 +108,28 @@ static void free_tr(int kmax, double*** tr) {
     free(tr);
 }
 
-/* ---------- set identical initial conditions at k=0 ---------- */
-static void init_k0(double*** tr, int n) {
-    for (int i = 0; i < n; ++i) {
+/* Reset whole trajectory buffer + reapply initial conditions */
+static void reset_trajectories(double*** tr, int kmax, int n) {
+    // Zero-out everything
+    for (int k = 0; k <= kmax; k++) {
+        for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < n; i++) {
+                tr[k][j][i] = 0.0;
+            }
+        }
+    }
+
+    // Reapply initial conditions at k = 0
+    for (int i = 0; i < n; i++) {
         tr[0][0][i] = i * 0.0001;       // x0
         tr[0][1][i] = 1.0 + i * 0.0001; // y0
         tr[0][2][i] = i * 0.0001;       // z0
     }
 }
 
+
 /* ---------- compare two trajectories: report max |diff| ---------- */
-static void compare_outputs(double*** A, double*** B, int kmax, int n) {
+static boolean compare_outputs(double*** A, double*** B, int kmax, int n) {
     double max_abs = 0.0;
     double max_abs_x = 0.0, max_abs_y = 0.0, max_abs_z = 0.0;
     int max_k = 0, max_i = 0, max_c = 0;
@@ -119,48 +149,153 @@ static void compare_outputs(double*** A, double*** B, int kmax, int n) {
             if (dz > max_abs) { max_abs = dz; max_k = k; max_i = i; max_c = 2; }
         }
     }
-
-    printf("\n=== C vs ASM comparison ===\n");
-    printf("Max |diff| overall   : %.12e at (k=%d, i=%d, comp=%c)\n",
-        max_abs, max_k, max_i, "xyz"[max_c]);
-    printf("Max |diff| per comp  : x=%.12e  y=%.12e  z=%.12e\n",
-        max_abs_x, max_abs_y, max_abs_z);
-
+    
     double tol = 1e-12;  // tune as needed
     if (max_abs <= tol) {
-        printf("Status: PASS (<= %.1e)\n", tol);
+        return TRUE;
     }
-    else {
-        printf("Status: WARN (> %.1e) — likely just rounding, but inspect.\n", tol);
-    }
+    
+    return FALSE;
 }
 
 /* ---------- main: run C and ASM into separate buffers, compare ---------- */
 int main(void) {
-    int n = 10;
-    int kmax = 20000;
+    printf("=================================================== RUN INFO ===================================================\n");
 
-    // allocate two independent buffers
+	const int n = 10;          // number of trajectories
+	const int kmax = 2000;  // number of time steps to be computed
+	printf("Number of trajectories      : %d\n", n);
+	printf("Number of time steps        : %d\n", kmax);
+
+    // Declare test variables
+    const int TEST_NUM = 30;
+    int j;
+	printf("Number of tests per kernel  : %d\n\n\n", TEST_NUM);
+
+    // Declare the timer variable
+    LARGE_INTEGER li;
+    long long int start, end;
+	double PCFreq, c_time, asm_time, simd_time;
+	QueryPerformanceFrequency(&li);
+    PCFreq = (double)(li.QuadPart);
+
+    // Allocate three independent buffers
     double*** tr_c = alloc_tr(kmax, n);
     double*** tr_asm = alloc_tr(kmax, n);
+	double*** tr_simd = alloc_tr(kmax, n);
 
-    // set identical initial conditions in both
-    init_k0(tr_c, n);
-    init_k0(tr_asm, n);
+	// Set identical initial conditions for the three buffers
+    reset_trajectories(tr_c, kmax, n);
+    reset_trajectories(tr_asm, kmax, n);
+    reset_trajectories(tr_simd, kmax, n);
 
-    printf("Running C kernel...\n");
-    C_kernel(n, kmax, tr_c);
-    print_trajectories(tr_c, kmax);
 
-    printf("Running x86_64 scalar kernel...\n");
-    x86_64_scalar_kernel(n, kmax, tr_asm);
-    print_trajectories(tr_asm, kmax);
+	// Performance summary
+	printf("============================================== PERFORMANCE SUMMARY =============================================\n\n");
 
-    // Compare full trajectories
-    compare_outputs(tr_c, tr_asm, kmax, n);
+    // FIRST KERNEL: PROGRAM IN C
+    c_time = 0.0;
+	for (j = 0; j < TEST_NUM; j++) {
+        // Start timer
+        QueryPerformanceCounter(&li);
+        start = li.QuadPart;
+
+        // Run C kernel
+        C_kernel(n, kmax, tr_c);
+
+        // Stop timer
+        QueryPerformanceCounter(&li);
+        end = li.QuadPart;
+        c_time += ((double)(end - start)) * 1000.0 / PCFreq;
+
+		// Reset only if NOT the last test
+        if (j < TEST_NUM - 1) {
+            reset_trajectories(tr_c, kmax, n);
+		}
+    }
+    printf("[ C Reference Kernel ]\n");
+    printf("  Average Time:       %f ms\n", c_time / TEST_NUM);
+    printf("  Output Status:      PASS");
+    printf("\n\n");
+
+    
+	// SECOND KERNEL: x86_64 SCALAR KERNEL
+	asm_time = 0.0;
+    for (j = 0; j < TEST_NUM; j++) {
+        // Start timer
+        QueryPerformanceCounter(&li);
+        start = li.QuadPart;
+
+        // Run x86_64 scalar kernel
+        x86_64_scalar_kernel(n, kmax, tr_asm);
+
+        // Stop timer
+        QueryPerformanceCounter(&li);
+        end = li.QuadPart;
+        asm_time += ((double)(end - start)) * 1000.0 / PCFreq;
+
+		// Reset only if NOT the last test
+        if (j < TEST_NUM - 1) {
+            reset_trajectories(tr_asm, kmax, n);
+		}
+    }
+    printf("[ x86-64 Scalar Kernel ]\n");
+    printf("  Average Time:       %f ms\n", asm_time / TEST_NUM);
+    if (compare_outputs(tr_c, tr_asm, kmax, n)) {
+        printf("  Output Status:      PASS");
+    } else {
+        printf("  Output Status:      FAIL");
+	}
+	printf("\n\n");
+
+    
+	// THIRD KERNEL: x86_64 SIMD KERNEL
+	simd_time = 0.0;
+    for (j = 0; j < TEST_NUM; j++) {
+        // Start timer
+        QueryPerformanceCounter(&li);
+        start = li.QuadPart;
+
+        // Run x86_64 SIMD kernel
+        x86_64_simd_kernel(n, kmax, tr_simd);
+
+        // Stop timer
+        QueryPerformanceCounter(&li);
+        end = li.QuadPart;
+		simd_time += ((double)(end - start)) * 1000.0 / PCFreq;
+
+        // Reset only if NOT the last test
+        if (j < TEST_NUM - 1) {
+            reset_trajectories(tr_simd, kmax, n);
+        }
+	}
+	printf("[ x86-64 SIMD Kernel ]\n");
+	printf("  Average Time:       %f ms\n", simd_time / TEST_NUM);
+	if (compare_outputs(tr_c, tr_simd, kmax, n)) {
+		printf("  Output Status:      PASS");
+    } else {
+        printf("  Output Status:      FAIL");
+    }
+	printf("\n\n");
+
+    printf("\n");
+
+
+    // Correctness Checking
+    printf("============================================= CORRECTNESS CHECKS =============================================\n\n");
+
+	printf("C Kernel Trajectories:\n\n");
+	print_trajectories(tr_c, kmax, n);
+
+	printf("x86-64 Scalar Kernel Trajectories:\n\n");
+	print_trajectories(tr_asm, kmax, n);
+
+	printf("x86-64 SIMD Kernel Trajectories:\n\n");
+	print_trajectories(tr_simd, kmax, n);
 
     // cleanup
     free_tr(kmax, tr_c);
     free_tr(kmax, tr_asm);
+	free_tr(kmax, tr_simd);
     return 0;
 }
