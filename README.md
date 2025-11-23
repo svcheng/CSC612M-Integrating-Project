@@ -406,6 +406,8 @@ If `n` is not a multiple of 4, a scalar tail loop (`.inner_scalar`) handles the 
     jmp     .inner_scalar
 ```
 
+We didn't use masking, compared to the [previous project](https://github.com/svcheng/CSC612M-SIMD-Programming-Project.git). In this project, any remainder when `n` is not divisible by four is handled by a scalar tail loop rather than masked SIMD instructions. This avoids the overhead of generating mask registers and prevents unnecessary computation on padded lanes, while keeping the implementation simpler and more maintainable. Since the unaligned remainder is small relative to the full vectorized workload and scalar execution for the last few elements does not meaningfully affect performance, the scalar-tail approach is both cleaner and more efficient for this problem structure.
+
 #### Additional Implementation Details
 
 * **Stack scratch space**: The SIMD kernel reserves 128 bytes on the stack to spill intermediate vectors (`k1x`, `k1y`, `k1z`) for reuse.
