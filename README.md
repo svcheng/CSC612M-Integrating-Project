@@ -1,4 +1,4 @@
-# Accelerating Heun’s Method for the Lorenz System Using AVX2 SIMD on x86-64 CPUs
+# Parallelizing Heun’s Method for the Lorenz System Using AVX2 SIMD on x86-64 CPUs
 
 ## 1. Project Overview
 
