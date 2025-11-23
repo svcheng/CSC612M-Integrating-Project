@@ -548,5 +548,5 @@ To ensure transparency, below are examples of actual prompts used when refining 
 
 1. *“Can you rephrase this paragraph for the README to make it more formal and concise?”*
 2. *“Format this benchmark table neatly for GitHub Markdown.”*
-3. *“Turn my bullet points on the comparison of the four kernels (C, x86, XMM, YMM) to a neat section.”*
+3. *“Turn my bullet points on the comparison of the three kernels (C, x86, YMM) to a neat section.”*
 4. *“Improve the README structure of the Analysis and Discussion section for clarity, keeping the technical meaning intact.”*
