@@ -46,10 +46,10 @@ static void print_trajectories(double*** trajectories, int kmax, int n) {
     int tmax = kmax + 1;
 
     for (int i = 0; i < n && i < 4; i++) {   // print up to 4 trajectories
-        printf("------------ Trajectory %d ------------\n", i + 1);
+        printf("  ------------ Trajectory %d ------------\n", i + 1);
 
         for (int j = 0; j < 3; j++) {
-            printf("%c: [", (j == 0 ? 'x' : (j == 1 ? 'y' : 'z')));
+            printf("  %c: [", (j == 0 ? 'x' : (j == 1 ? 'y' : 'z')));
 
             if (tmax <= 5) {
                 // --- Print all values if short ---
@@ -77,7 +77,7 @@ static void print_trajectories(double*** trajectories, int kmax, int n) {
             printf("]\n");
         }
 
-        printf("\n\n");
+        printf("\n");
     }
 }
 
@@ -162,15 +162,15 @@ static boolean compare_outputs(double*** A, double*** B, int kmax, int n) {
 int main(void) {
     printf("=================================================== RUN INFO ===================================================\n");
 
-	const int n = 100;          // number of trajectories
-	const int kmax = 2000;  // number of time steps to be computed
+	const int n = 1 << 25;          // number of trajectories
+	const int kmax = 1 << 6;  // number of time steps to be computed
 	printf("Number of trajectories      : %d\n", n);
 	printf("Number of time steps        : %d\n", kmax);
 
     // Declare test variables
     const int TEST_NUM = 30;
     int j;
-	printf("Number of tests per kernel  : %d\n\n\n", TEST_NUM);
+	printf("Number of tests per kernel  : %d\n\n", TEST_NUM);
 
     // Declare the timer variable
     LARGE_INTEGER li;
@@ -179,23 +179,21 @@ int main(void) {
 	QueryPerformanceFrequency(&li);
     PCFreq = (double)(li.QuadPart);
 
-    // Allocate three independent buffers
+	// Performance summary
+	printf("============================================== PERFORMANCE SUMMARY =============================================\n");
+
+    // Allocate buffers and set initial conditions
     double*** tr_c = alloc_tr(kmax, n);
     double*** tr_asm = alloc_tr(kmax, n);
-	double*** tr_simd = alloc_tr(kmax, n);
-
-	// Set identical initial conditions for the three buffers
     reset_trajectories(tr_c, kmax, n);
     reset_trajectories(tr_asm, kmax, n);
-    reset_trajectories(tr_simd, kmax, n);
-
-
-	// Performance summary
-	printf("============================================== PERFORMANCE SUMMARY =============================================\n\n");
 
     // FIRST KERNEL: PROGRAM IN C
     c_time = 0.0;
 	for (j = 0; j < TEST_NUM; j++) {
+        // Reset
+        reset_trajectories(tr_c, kmax, n);
+
         // Start timer
         QueryPerformanceCounter(&li);
         start = li.QuadPart;
@@ -207,21 +205,19 @@ int main(void) {
         QueryPerformanceCounter(&li);
         end = li.QuadPart;
         c_time += ((double)(end - start)) * 1000.0 / PCFreq;
-
-		// Reset only if NOT the last test
-        if (j < TEST_NUM - 1) {
-            reset_trajectories(tr_c, kmax, n);
-		}
     }
-    printf("[ C Reference Kernel ]\n");
+    printf("[ C Reference Kernel ] ----------------------------------------------------------------------------------------\n");
     printf("  Average Time:       %f ms\n", c_time / TEST_NUM);
     printf("  Output Status:      PASS");
-    printf("\n\n");
-
+    printf("\n\n  Trajectories:\n");
+    print_trajectories(tr_c, kmax, n);
     
 	// SECOND KERNEL: x86_64 SCALAR KERNEL
 	asm_time = 0.0;
     for (j = 0; j < TEST_NUM; j++) {
+        // Reset
+        reset_trajectories(tr_asm, kmax, n);
+
         // Start timer
         QueryPerformanceCounter(&li);
         start = li.QuadPart;
@@ -233,69 +229,48 @@ int main(void) {
         QueryPerformanceCounter(&li);
         end = li.QuadPart;
         asm_time += ((double)(end - start)) * 1000.0 / PCFreq;
-
-		// Reset only if NOT the last test
-        if (j < TEST_NUM - 1) {
-            reset_trajectories(tr_asm, kmax, n);
-		}
     }
-    printf("[ x86-64 Scalar Kernel ]\n");
+    printf("[ x86-64 Scalar Kernel ]----------------------------------------------------------------------------\n");
     printf("  Average Time:       %f ms\n", asm_time / TEST_NUM);
     if (compare_outputs(tr_c, tr_asm, kmax, n)) {
         printf("  Output Status:      PASS");
     } else {
         printf("  Output Status:      FAIL");
 	}
-	printf("\n\n");
-
+    printf("\n\n  Trajectories:\n");
+    print_trajectories(tr_asm, kmax, n);
     
 	// THIRD KERNEL: x86_64 SIMD KERNEL
 	simd_time = 0.0;
     for (j = 0; j < TEST_NUM; j++) {
+        // Reset
+        reset_trajectories(tr_asm, kmax, n);
+
         // Start timer
         QueryPerformanceCounter(&li);
         start = li.QuadPart;
 
         // Run x86_64 SIMD kernel
-        x86_64_simd_kernel(n, kmax, tr_simd);
+        x86_64_simd_kernel(n, kmax, tr_asm);
 
         // Stop timer
         QueryPerformanceCounter(&li);
         end = li.QuadPart;
 		simd_time += ((double)(end - start)) * 1000.0 / PCFreq;
-
-        // Reset only if NOT the last test
-        if (j < TEST_NUM - 1) {
-            reset_trajectories(tr_simd, kmax, n);
-        }
 	}
-	printf("[ x86-64 SIMD Kernel ]\n");
+	printf("[ x86-64 SIMD Kernel ] ------------------------------------------------------------------------------\n");
 	printf("  Average Time:       %f ms\n", simd_time / TEST_NUM);
-	if (compare_outputs(tr_c, tr_simd, kmax, n)) {
+	if (compare_outputs(tr_c, tr_asm, kmax, n)) {
 		printf("  Output Status:      PASS");
     } else {
         printf("  Output Status:      FAIL");
     }
-	printf("\n\n");
-
-    printf("\n");
-
-
-    // Correctness Checking
-    printf("============================================= CORRECTNESS CHECKS =============================================\n\n");
-
-	printf("C Kernel Trajectories ----------------------------------------------------------------------------------------\n\n");
-	print_trajectories(tr_c, kmax, n);
-
-	printf("x86-64 Scalar Kernel Trajectories ----------------------------------------------------------------------------\n\n");
-	print_trajectories(tr_asm, kmax, n);
-
-	printf("x86-64 SIMD Kernel Trajectories ------------------------------------------------------------------------------\n\n");
-	print_trajectories(tr_simd, kmax, n);
+    printf("\n\n  Trajectories:\n");
+    print_trajectories(tr_asm, kmax, n);
 
     // cleanup
     free_tr(kmax, tr_c);
     free_tr(kmax, tr_asm);
-	free_tr(kmax, tr_simd);
+	//free_tr(kmax, tr_simd);
     return 0;
 }
