@@ -162,7 +162,7 @@ static boolean compare_outputs(double*** A, double*** B, int kmax, int n) {
 int main(void) {
     printf("=================================================== RUN INFO ===================================================\n");
 
-	const int n = 10;          // number of trajectories
+	const int n = 100;          // number of trajectories
 	const int kmax = 2000;  // number of time steps to be computed
 	printf("Number of trajectories      : %d\n", n);
 	printf("Number of time steps        : %d\n", kmax);
@@ -284,13 +284,13 @@ int main(void) {
     // Correctness Checking
     printf("============================================= CORRECTNESS CHECKS =============================================\n\n");
 
-	printf("C Kernel Trajectories:\n\n");
+	printf("C Kernel Trajectories ----------------------------------------------------------------------------------------\n\n");
 	print_trajectories(tr_c, kmax, n);
 
-	printf("x86-64 Scalar Kernel Trajectories:\n\n");
+	printf("x86-64 Scalar Kernel Trajectories ----------------------------------------------------------------------------\n\n");
 	print_trajectories(tr_asm, kmax, n);
 
-	printf("x86-64 SIMD Kernel Trajectories:\n\n");
+	printf("x86-64 SIMD Kernel Trajectories ------------------------------------------------------------------------------\n\n");
 	print_trajectories(tr_simd, kmax, n);
 
     // cleanup
