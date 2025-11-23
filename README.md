@@ -502,3 +502,51 @@ The same tests were executed in **Release mode** (optimized build).
 
 ## 5. Comparative Analysis
 
+
+
+<br>
+
+---
+
+<br>
+
+## 6. Discussion: Process, Problems, and AHA Moments
+
+### 6.1 Methodology
+
+
+### 6.2 Problems Encountere and How They Were Solved
+
+
+### 6.3 Overall Reflections and Learning Outcomes
+
+
+
+<br>
+
+---
+
+<br>
+
+## 7. Declaration of AI Usage
+
+This project utilized **OpenAI’s GPT-5 (ChatGPT)** solely for the purpose of improving the **documentation, structure, and readability** of this repository — particularly the GitHub README.
+
+AI assistance was confined to:
+
+* Rewording explanations for clarity and conciseness
+* Formatting Markdown elements (headings, tables, and summary boxes)
+* Structuring the comparative analysis and discussion sections for readability
+* Creating a consistent academic and technical tone across the documentation
+
+The AI did **not** generate or influence any conceptual, mathematical, or implementation-level content. It was purely used as a writing and formatting aid.
+All project ideas, algorithms, assembly code, analyses, interpretations, etc. were entirely formulated by us.
+
+### Prompts Used
+
+To ensure transparency, below are examples of actual prompts used when refining documentation and explanations:
+
+1. *“Can you rephrase this paragraph for the README to make it more formal and concise?”*
+2. *“Format this benchmark table neatly for GitHub Markdown.”*
+3. *“Turn my bullet points on the comparison of the four kernels (C, x86, XMM, YMM) to a neat section.”*
+4. *“Improve the README structure of the Analysis and Discussion section for clarity, keeping the technical meaning intact.”*
