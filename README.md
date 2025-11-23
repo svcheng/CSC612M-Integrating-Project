@@ -12,8 +12,6 @@ This project implements a high-performance numerical solver for the **Lorenz sys
 
 The goal of this project is to benchmark how computation speed improves when transitioning from high-level scalar code → low-level assembly → full SIMD vectorization.
 
-<br>
-
 ### Repository Layout
 
 ```
@@ -24,7 +22,11 @@ The goal of this project is to benchmark how computation speed improves when tra
 └─ README.md                 # this file
 ```
 
+<br>
+
 ---
+
+<br>
 
 ## 2. Project Description
 
@@ -58,7 +60,11 @@ This project presents a parallel implementation of Heun's algorithm for simulati
 
 The program will accept as input an $n\times3$ array of initial values, the number of time steps $k_{max}$, and the integration step size $h$. Its output will be an $(n\times k_{max}+1)\times3$ array containing the approximate states of all trajectories at the time points $t_1, t_2, \dots, t_{max}$.
 
+<br>
+
 ---
+
+<br>
 
 ## 3. Program Implementation
 
@@ -424,7 +430,7 @@ The three kernels are driven and benchmarked by `main.c`:
 
 * Allocates three independent trajectory buffers (`tr_c`, `tr_asm`, `tr_simd`)
 * Initializes consistent initial conditions with `reset_trajectories`
-* Times each kernel over `TEST_NUM` runs using `QueryPerformanceCounter`
+* Times each kernel over `TEST_NUM = 30` runs using `QueryPerformanceCounter`
 * Prints an average runtime and a **PASS/FAIL** correctness check against the C kernel
 
 This provides a simple but complete framework to:
@@ -434,5 +440,61 @@ This provides a simple but complete framework to:
 
   * high-level C → scalar ASM → AVX2 SIMD (data-parallel)
 
+<br>
 
+---
+
+<br>
+
+## 4. Results
+
+### 4.1 Debug-Mode Benchmark Results
+Performance in Debug mode was measured across progressively larger numbers of trajectories (n)
+
+| Input Size (n) | Screenshot                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| $2^{20}$       | <img width="824" height="529" alt="image" src="" /> |
+| $2^{26}$       | <img width="811" height="507" alt="image" src="" /> |
+| $2^{28}$       | <img width="812" height="524" alt="image" src="" /> |
+
+<br>
+
+### 4.2 Release-Mode Benchmark Results
+The same tests were executed in **Release mode** (optimized build).
+
+| Input Size (n) | Screenshot                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| $2^{20}$       | <img width="824" height="529" alt="image" src="" /> |
+| $2^{26}$       | <img width="811" height="507" alt="image" src="" /> |
+| $2^{28}$       | <img width="812" height="524" alt="image" src="" /> |
+
+<br>
+
+### 4.3 Summary Table of Execution Times
+
+*(All values in milliseconds; rounded to 4 decimal places)*
+
+#### **Debug Mode Results**
+
+| **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
+| :----------------: | :--------------: | :------------------: | :---------------------: |
+|         $2^{20}$   |                  |                      |                         |
+|         $2^{26}$   |                  |                      |                         |
+|         $2^{28}$   |                  |                      |                         |
+
+#### **Release Mode Results**
+
+| **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
+| :----------------: | :--------------: | :------------------: | :---------------------: |
+|         $2^{20}$   |                  |                      |                         |
+|         $2^{26}$   |                  |                      |                         |
+|         $2^{28}$   |                  |                      |                         |
+
+<br>
+
+---
+
+<br>
+
+## 5. Comparative Analysis
 
