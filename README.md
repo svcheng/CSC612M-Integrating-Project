@@ -433,6 +433,8 @@ The three kernels are driven and benchmarked by `main.c`:
 * Times each kernel over `TEST_NUM = 30` runs using `QueryPerformanceCounter`
 * Prints an average runtime and a **PASS/FAIL** correctness check against the C kernel
 
+Additionally, for benchmarking, we opted to measure performance by varying the number of trajectories (**n**) rather than the number of time steps (**kmax**). This is because time-stepping is inherently sequential—each step depends on the previous state—so increasing `kmax` simply scales execution time uniformly across all kernels without introducing new opportunities for parallel speedup. In contrast, trajectories are independent initial value problems, making `n` the dimension where parallelism exists. The scalar assembly kernel optimizes per-trajectory operations at the instruction level, while the AVX2 SIMD kernel vectorizes across multiple trajectories simultaneously (processing four with each 256-bit register), meaning performance benefits only manifest when `n` grows large enough to amortize loop overhead and saturate vector lanes. Thus, varying `n` directly measures how efficiently each implementation exploits data-parallelism, whereas varying `kmax` would only increase runtime without changing relative scaling behavior across kernels.
+ 
 This provides a simple but complete framework to:
 
 * Verify that all kernels implement the **same numerical algorithm**, and
