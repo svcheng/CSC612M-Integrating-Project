@@ -79,11 +79,36 @@ All kernels operate on the same data structure:
 * `double*** trajectories` is a 3D buffer of size `(kmax + 1) × 3 × n`, allocated in `main.c`.
 * Indexing convention:
 
-  * `trajectories[k][0][i]` → ( $x_i(t_k)$ )
-  * `trajectories[k][1][i]` → ( $y_i(t_k)$ )
-  * `trajectories[k][2][i]` → ( $z_i(t_k)$ ) 
+  * `trajectories[k][0][i]` → ( $x_i(t_k)$, the `x` coordinate of trajectory `i` in time `k` )
+  * `trajectories[k][1][i]` → ( $y_i(t_k)$, the `y` coordinate of trajectory `i` in time `k` )
+  * `trajectories[k][2][i]` → ( $z_i(t_k)$, the `y` coordinate of trajectory `i` in time `k` )
 
-This corresponds to a **structure-of-arrays (SoA)** layout across coordinates (`x`, `y`, `z`) and **contiguous arrays over trajectories**, which is friendly for SIMD. 
+Furthermore, the memory layout of the `trajectories` array can be visualized as follows:
+
+```
+trajectories[k][j][i]
+
+k-axis (time steps)
+↓
++----------------------------------+
+| k=0 → [ x0[i], y0[i], z0[i] ]    |
+| k=1 → [ x1[i], y1[i], z1[i] ]    |
+| k=2 → [ x2[i], y2[i], z2[i] ]    |
+|  ...                             |
+| k=kmax → [ xk[i], yk[i], zk[i] ] |
++----------------------------------+
+                     ↑
+             j = coordinate (0=x, 1=y, 2=z)
+                     ↑
+           i = trajectory index (0..n-1)
+```
+
+This SoA organization ensures that **x-values for different trajectories are stored consecutively in memory**, allowing SIMD instructions to load:
+
+* `x[i..i+3]` into one `YMM` register
+* similarly for `y` and `z`
+
+which is crucial for the performance of the AVX2 SIMD kernel.
 
 <br>
 
