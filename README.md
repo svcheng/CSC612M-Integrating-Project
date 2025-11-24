@@ -460,14 +460,14 @@ The three kernels are driven and benchmarked by `main.c`:
 * Times each kernel over `TEST_NUM = 30` runs using `QueryPerformanceCounter`
 * Prints an average runtime and a **PASS/FAIL** correctness check against the C kernel
 
-Additionally, for benchmarking, we opted to measure performance by varying the number of trajectories (**n**) rather than the number of time steps (**kmax**). This is because time-stepping is inherently sequential, ie. each step depends on the previous state. Increasing `kmax` simply scales execution time uniformly across all kernels without introducing new opportunities for parallel speedup. In contrast, trajectories are independent initial value problems, making `n` the dimension where parallelism exists. The scalar assembly kernel optimizes per-trajectory operations at the instruction level, while the AVX2 SIMD kernel vectorizes across multiple trajectories simultaneously (processing four with each 256-bit register), meaning performance benefits only manifest when `n` grows large enough to amortize loop overhead and saturate vector lanes. Thus, varying `n` directly measures how efficiently each implementation exploits data-parallelism, whereas varying `kmax` would only increase runtime without changing relative scaling behavior across kernels.
+Additionally, for benchmarking, we opted to measure performance by varying the number of trajectories **n** rather than the number of time steps **kmax** (which we keep constant at $2^{5}$). This is because time-stepping is inherently sequential, ie. each step depends on the previous state. Increasing `kmax` simply scales execution time uniformly across all kernels without introducing new opportunities for parallel speedup. In contrast, trajectories are independent initial value problems, making `n` the dimension where parallelism exists. The scalar assembly kernel optimizes per-trajectory operations at the instruction level, while the AVX2 SIMD kernel vectorizes across multiple trajectories simultaneously (processing four with each 256-bit register), meaning performance benefits only manifest when `n` grows large enough to amortize loop overhead and saturate vector lanes. Thus, varying `n` directly measures how efficiently each implementation exploits data-parallelism, whereas varying `kmax` would only increase runtime without changing relative scaling behavior across kernels.
  
 This provides a simple but complete framework to:
 
 * Verify that all kernels implement the **same numerical algorithm**, and
 * Measure performance gains when moving from:
 
-  * high-level C → scalar ASM → AVX2 SIMD (data-parallel)
+  * high-level C → scalar ASM → AVX2 SIMD
 
 <br>
 
@@ -505,19 +505,35 @@ The same tests were executed in **Release mode** (optimized build).
 
 #### **Debug Mode Results**
 
-| **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
-| :----------------: | :--------------: | :------------------: | :---------------------: |
-|         $2^{19}$   |    284.5794      |        91.7351       |        62.9628          |
+Execution Times:
+| **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** | 
+| :----------------: | :--------------: | :------------------: | :---------------------: | 
+|         $2^{19}$   |    284.5794      |        91.7351       |        62.9628          | 
 |         $2^{21}$   |    1218.7903     |        378.4828      |        257.0667         |
-|         $2^{23}$   |    4727.621753   |        2521.4130     |        1070.7535        |
+|         $2^{23}$   |    4727.6218     |        2521.4130     |        1070.7535        |
+
+Speedups (over C):
+| **Input Size (n)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** | 
+| :----------------: | :------------------: | :---------------------: | 
+|         $2^{19}$   |        3.10          |        4.52             | 
+|         $2^{21}$   |        3.22          |        4.74             |
+|         $2^{23}$   |        1.87          |        4.42             |
 
 #### **Release Mode Results**
 
+Execution Times:
 | **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
 | :----------------: | :--------------: | :------------------: | :---------------------: |
 |         $2^{19}$   |    307.7142      |      94.0477         |        64.9163          |
 |         $2^{21}$   |    1191.9283     |      397.7141        |        269.7831         |
 |         $2^{23}$   |    4712.2199     |      2460.4902       |        1076.0983        |
+
+Speedups (over C):
+| **Input Size (n)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
+| :----------------: | :------------------: | :---------------------: |
+|         $2^{19}$   |      3.27            |        4.74             |
+|         $2^{21}$   |      3.00            |        4.42             |
+|         $2^{23}$   |      1.92            |        4.38             |
 
 <br>
 
@@ -527,7 +543,7 @@ The same tests were executed in **Release mode** (optimized build).
 
 ## 5. Comparative Analysis
 
-
+From the results shown above, it is clear that our **parallel implementations perform substantially better than their C baselines**, and their relative speedups significantly better than that achieved by scalar x86 assembly implementation. This is true for both debug and release configurations, for all input sizes tested. The results strongly suggest that SIMD parallelization can drastically speedup the numerical integration of Lorenz systems with different initial conditions, and that the speedup comes not only from assembly being faster than C, but from the parallelization.
 
 <br>
 
