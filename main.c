@@ -276,6 +276,6 @@ int main(void) {
     // cleanup
     free_tr(kmax, tr_c);
     free_tr(kmax, tr_asm);
-	//free_tr(kmax, tr_simd);
+	free_tr(kmax, tr_simd);
     return 0;
 }
