@@ -162,8 +162,8 @@ static boolean compare_outputs(double*** A, double*** B, int kmax, int n) {
 int main(void) {
     printf("=================================================== RUN INFO ===================================================\n");
 
-	const int n = 1 << 25;          // number of trajectories
-	const int kmax = 1 << 6;  // number of time steps to be computed
+	const int n = 1 << 24;          // number of trajectories
+	const int kmax = 1 << 5;  // number of time steps to be computed
 	printf("Number of trajectories      : %d\n", n);
 	printf("Number of time steps        : %d\n", kmax);
 
@@ -180,11 +180,13 @@ int main(void) {
     PCFreq = (double)(li.QuadPart);
 
 	// Performance summary
-	printf("============================================== PERFORMANCE SUMMARY =============================================\n");
+    printf("============================================== CORRECTNESS CHECKS =============================================\n");
 
     // Allocate buffers and set initial conditions
     double*** tr_c = alloc_tr(kmax, n);
+    printf("Allocated buffer 1\n");
     double*** tr_asm = alloc_tr(kmax, n);
+    printf("Allocated buffer 2\n");
     reset_trajectories(tr_c, kmax, n);
     reset_trajectories(tr_asm, kmax, n);
 
@@ -207,9 +209,8 @@ int main(void) {
         c_time += ((double)(end - start)) * 1000.0 / PCFreq;
     }
     printf("[ C Reference Kernel ] ----------------------------------------------------------------------------------------\n");
-    printf("  Average Time:       %f ms\n", c_time / TEST_NUM);
     printf("  Output Status:      PASS");
-    printf("\n\n  Trajectories:\n");
+    printf("\n\n  C Kernel Trajectories:\n");
     print_trajectories(tr_c, kmax, n);
     
 	// SECOND KERNEL: x86_64 SCALAR KERNEL
@@ -231,13 +232,12 @@ int main(void) {
         asm_time += ((double)(end - start)) * 1000.0 / PCFreq;
     }
     printf("[ x86-64 Scalar Kernel ]----------------------------------------------------------------------------\n");
-    printf("  Average Time:       %f ms\n", asm_time / TEST_NUM);
     if (compare_outputs(tr_c, tr_asm, kmax, n)) {
         printf("  Output Status:      PASS");
     } else {
         printf("  Output Status:      FAIL");
 	}
-    printf("\n\n  Trajectories:\n");
+    printf("\n\n  x86-64 Scalar Kernel Trajectories:\n");
     print_trajectories(tr_asm, kmax, n);
     
 	// THIRD KERNEL: x86_64 SIMD KERNEL
@@ -259,14 +259,19 @@ int main(void) {
 		simd_time += ((double)(end - start)) * 1000.0 / PCFreq;
 	}
 	printf("[ x86-64 SIMD Kernel ] ------------------------------------------------------------------------------\n");
-	printf("  Average Time:       %f ms\n", simd_time / TEST_NUM);
 	if (compare_outputs(tr_c, tr_asm, kmax, n)) {
 		printf("  Output Status:      PASS");
     } else {
         printf("  Output Status:      FAIL");
     }
-    printf("\n\n  Trajectories:\n");
+    printf("\n\n  x86-64 SIMD Trajectories:\n");
     print_trajectories(tr_asm, kmax, n);
+
+    printf("\n");
+    printf("============================================== PERFORMANCE SUMMARY =============================================\n\n");
+    printf("  C Kernel Average Time:                   %f ms\n", c_time / TEST_NUM);
+    printf("  x86-64 Scalar Kernel Average Time:       %f ms\n", asm_time / TEST_NUM);
+    printf("  x86-64 SIMD Kernel Average Time:         %f ms\n", simd_time / TEST_NUM);
 
     // cleanup
     free_tr(kmax, tr_c);
