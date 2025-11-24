@@ -559,17 +559,37 @@ In summary, these experiments show that while scalar hand-written assembly yield
 
 <br>
 
-## 6. Discussion: Process, Problems, and AHA Moments
+# 6. Discussion: Process, Problems, and AHA Moments
 
-### 6.1 Methodology
+## 6.1 Methodology
 
+The development process followed a **layered approach**, beginning with a correct and readable baseline and gradually progressing toward increasingly low-level and parallelized implementations. We first implemented Heun’s method in C to serve as a **mathematically trustworthy reference**. Once correctness was established, we translated the computation into a **hand-written scalar x86-64 assembly kernel**, mirroring the control flow of the C version but optimizing memory accesses, constant handling, and instruction organization. This stage was important not only for performance, but also for gaining a more precise understanding of the algorithm’s per-element operations and the CPU’s expectations regarding register usage and calling conventions.
 
-### 6.2 Problems Encountere and How They Were Solved
+After validating the scalar assembly against the C implementation, we used this kernel as a stepping stone toward a **fully vectorized AVX2 version**. The methodology for the SIMD kernel was guided by several key principles: using the **Structure-of-Arrays (SoA)** format, ensuring that the `x`, `y`, and `z` values of trajectories are contiguous in memory; processing trajectories in **blocks of four** to match 256-bit YMM registers; and carefully planning register usage to avoid pipeline stalls and unnecessary loads. At each stage, correctness was tested by comparing outputs against the C baseline with a strict tolerance threshold, ensuring that performance improvements did not compromise numerical integrity. Finally, a benchmarking harness in `main.c` provided a controlled environment to measure performance and validate speedups across different input sizes.
 
+<br>
 
-### 6.3 Overall Reflections and Learning Outcomes
+## 6.2 Problems Encountered and How They Were Solved
 
+A major challenge throughout this project was the **mental shift** required when moving from high-level C to low-level x86-64 assembly. Concepts that are trivial in C—like accessing `trajectories[k][j][i]` became multi-step pointer arithmetic sequences in assembly. Early versions of the scalar kernel suffered from incorrect indexing, register clobbering, and off-by-one pointer errors. These issues were resolved by carefully documenting which registers held which pointers, systematically annotating load–compute–store blocks, and stepping through the logic using a combination of printouts, hand-traced memory maps, and referencing.
 
+Another challenge was **AVX2 register pressure and instruction ordering**. The SIMD kernel requires holding multiple vectors at once: `x`, `y`, `z`, `k1_x`, `k1_y`, `k1_z`, their predictor states, and several broadcast constants. The limited number of YMM registers meant that some values needed to be spilled to the stack. Getting this spill/restore pattern correct took several iterations of debugging. An early AHA moment occurred when we realized that the SIMD kernel didn’t need masking for remainder elements at all; a simple **scalar tail loop** was cleaner, faster, and easier to debug.
+
+We also encountered issues with **AVX–SSE transition penalties**. Mixing legacy SSE instructions with AVX instructions introduced unexpected slowdowns until we discovered the need for `vzeroupper` before returning from the kernel. Similarly, unaligned loads initially caused segmentation faults when trajectory arrays were large; switching to `vmovupd` (unaligned loads) and ensuring 32-byte alignment for certain buffers fixed the issue.
+
+Finally, performance debugging revealed another subtle challenge: increasing the number of steps `kmax` did not affect SIMD speedups, but increasing the number of trajectories `n` did. We initially tested with varying `kmax`, wondering why SIMD performance seemed flat. The insight came when we recognized that **parallelism exists only across trajectories**, not across time steps. This realization reshaped the entire benchmarking methodology.
+
+<br>
+
+## 6.3 Overall Reflections and Learning Outcomes
+
+This project offered substantial insights into how **algorithm design, data layout, and CPU architecture** interact. One of the most meaningful lessons was that **SIMD acceleration is not just an “optimization”—it is a redesign of the algorithm around the hardware**. The compiler can optimize scalar loops, but it cannot infer that trajectories should be reorganized into a structure-of-arrays layout, nor can it automatically vectorize multi-stage predictor–corrector schemes with complex dependencies. This deepened our appreciation for SIMD programming.
+
+Another takeaway was the importance of **controlling every layer of the computation**. Writing the scalar kernel made it clear how much work compilers silently perform: register allocation, lifetime management, instruction scheduling, and stack discipline. Writing the SIMD kernel demonstrated how much more complex the landscape becomes when wider registers, dependency chains, and spilling rules are introduced.
+
+Perhaps the biggest AHA moment was recognizing that **SIMD speedup is only possible because the problem is parallel across trajectories**. Without this structural independence, no amount of assembly tuning could yield the gains we observed. This project made it clear that the most powerful optimizations are not micro-level instruction tweaks, but macro-level insights about the inherent parallelism in the problem.
+
+Overall, this project strengthened skills in low-level programming, SIMD reasoning, performance engineering, and numerical method implementation—while also serving as a humbling reminder that high-level languages hide a tremendous amount of complexity that assembly programmers must directly confront.
 
 <br>
 
