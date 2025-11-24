@@ -455,12 +455,12 @@ We didn't use masking, compared to the [previous project](https://github.com/svc
 
 The three kernels are driven and benchmarked by `main.c`: 
 
-* Allocates three independent trajectory buffers (`tr_c`, `tr_asm`, `tr_simd`)
+* Allocates 2 independent trajectory buffers (`tr_c`, `tr_asm`) for the correctness checks
 * Initializes consistent initial conditions with `reset_trajectories`
 * Times each kernel over `TEST_NUM = 30` runs using `QueryPerformanceCounter`
 * Prints an average runtime and a **PASS/FAIL** correctness check against the C kernel
 
-Additionally, for benchmarking, we opted to measure performance by varying the number of trajectories (**n**) rather than the number of time steps (**kmax**). This is because time-stepping is inherently sequential—each step depends on the previous state—so increasing `kmax` simply scales execution time uniformly across all kernels without introducing new opportunities for parallel speedup. In contrast, trajectories are independent initial value problems, making `n` the dimension where parallelism exists. The scalar assembly kernel optimizes per-trajectory operations at the instruction level, while the AVX2 SIMD kernel vectorizes across multiple trajectories simultaneously (processing four with each 256-bit register), meaning performance benefits only manifest when `n` grows large enough to amortize loop overhead and saturate vector lanes. Thus, varying `n` directly measures how efficiently each implementation exploits data-parallelism, whereas varying `kmax` would only increase runtime without changing relative scaling behavior across kernels.
+Additionally, for benchmarking, we opted to measure performance by varying the number of trajectories (**n**) rather than the number of time steps (**kmax**). This is because time-stepping is inherently sequential, ie. each step depends on the previous state. Increasing `kmax` simply scales execution time uniformly across all kernels without introducing new opportunities for parallel speedup. In contrast, trajectories are independent initial value problems, making `n` the dimension where parallelism exists. The scalar assembly kernel optimizes per-trajectory operations at the instruction level, while the AVX2 SIMD kernel vectorizes across multiple trajectories simultaneously (processing four with each 256-bit register), meaning performance benefits only manifest when `n` grows large enough to amortize loop overhead and saturate vector lanes. Thus, varying `n` directly measures how efficiently each implementation exploits data-parallelism, whereas varying `kmax` would only increase runtime without changing relative scaling behavior across kernels.
  
 This provides a simple but complete framework to:
 
@@ -482,9 +482,9 @@ Performance in Debug mode was measured across progressively larger numbers of tr
 
 | Input Size (n) | Screenshot                                                                                                |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| $2^{20}$       | <img width="824" height="529" alt="image" src="" /> |
-| $2^{26}$       | <img width="811" height="507" alt="image" src="" /> |
-| $2^{28}$       | <img width="812" height="524" alt="image" src="" /> |
+| $2^{19}$       | <img width="500" height="74" alt="debug19" src="https://github.com/user-attachments/assets/a745e8cb-ae1d-42cb-b409-67b07aba6578" /> |
+| $2^{21}$       | <img width="519" height="81" alt="debug21" src="https://github.com/user-attachments/assets/58fc5684-f47a-4d75-a8ee-f37934d43a12" /> |
+| $2^{23}$       | <img width="549" height="92" alt="debug23" src="https://github.com/user-attachments/assets/1414b7fe-8a83-4bf2-9a8f-a36afce3eb3b" /> |
 
 <br>
 
@@ -493,9 +493,9 @@ The same tests were executed in **Release mode** (optimized build).
 
 | Input Size (n) | Screenshot                                                                                                |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| $2^{20}$       | <img width="824" height="529" alt="image" src="" /> |
-| $2^{26}$       | <img width="811" height="507" alt="image" src="" /> |
-| $2^{28}$       | <img width="812" height="524" alt="image" src="" /> |
+| $2^{19}$       | <img width="513" height="87" alt="release19" src="https://github.com/user-attachments/assets/643614d7-d9a7-4470-8004-eba024d5d61b" /> |
+| $2^{21}$       | <img width="510" height="73" alt="release21" src="https://github.com/user-attachments/assets/ccbc8bcd-4995-4242-a47c-38271b8802dc" /> |
+| $2^{23}$       | <img width="538" height="91" alt="image" src="https://github.com/user-attachments/assets/0b5c8162-87fc-460f-88e4-e996d69bcb12" /> |
 
 <br>
 
@@ -507,17 +507,17 @@ The same tests were executed in **Release mode** (optimized build).
 
 | **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
 | :----------------: | :--------------: | :------------------: | :---------------------: |
-|         $2^{20}$   |                  |                      |                         |
-|         $2^{26}$   |                  |                      |                         |
-|         $2^{28}$   |                  |                      |                         |
+|         $2^{19}$   |    284.5794      |        91.7351       |        62.9628          |
+|         $2^{21}$   |    1218.7903     |        378.4828      |        257.0667         |
+|         $2^{23}$   |    4727.621753   |        2521.4130     |        1070.7535        |
 
 #### **Release Mode Results**
 
 | **Input Size (n)** | **C (Baseline)** | **x86 (Scalar ASM)** | **AVX2 SIMD (256-bit)** |
 | :----------------: | :--------------: | :------------------: | :---------------------: |
-|         $2^{20}$   |                  |                      |                         |
-|         $2^{26}$   |                  |                      |                         |
-|         $2^{28}$   |                  |                      |                         |
+|         $2^{19}$   |    307.7142      |      94.0477         |        64.9163          |
+|         $2^{21}$   |    1191.9283     |      397.7141        |        269.7831         |
+|         $2^{23}$   |    4712.2199     |      2460.4902       |        1076.0983        |
 
 <br>
 
