@@ -559,9 +559,9 @@ In summary, these experiments show that while scalar hand-written assembly yield
 
 <br>
 
-# 6. Discussion: Process, Problems, and AHA Moments
+## 6. Discussion: Process, Problems, and AHA Moments
 
-## 6.1 Methodology
+### 6.1 Methodology
 
 The development process followed a **layered approach**, beginning with a correct and readable baseline and gradually progressing toward increasingly low-level and parallelized implementations. We first implemented Heun’s method in C to serve as a **mathematically trustworthy reference**. Once correctness was established, we translated the computation into a **hand-written scalar x86-64 assembly kernel**, mirroring the control flow of the C version but optimizing memory accesses, constant handling, and instruction organization. This stage was important not only for performance, but also for gaining a more precise understanding of the algorithm’s per-element operations and the CPU’s expectations regarding register usage and calling conventions.
 
@@ -569,7 +569,7 @@ After validating the scalar assembly against the C implementation, we used this 
 
 <br>
 
-## 6.2 Problems Encountered and How They Were Solved
+### 6.2 Problems Encountered and How They Were Solved
 
 A major challenge throughout this project was the **mental shift** required when moving from high-level C to low-level x86-64 assembly. Concepts that are trivial in C—like accessing `trajectories[k][j][i]` became multi-step pointer arithmetic sequences in assembly. Early versions of the scalar kernel suffered from incorrect indexing, register clobbering, and off-by-one pointer errors. These issues were resolved by carefully documenting which registers held which pointers, systematically annotating load–compute–store blocks, and stepping through the logic using a combination of printouts, hand-traced memory maps, and referencing.
 
@@ -581,7 +581,7 @@ Finally, performance debugging revealed another subtle challenge: increasing the
 
 <br>
 
-## 6.3 Overall Reflections and Learning Outcomes
+### 6.3 Overall Reflections and Learning Outcomes
 
 This project offered substantial insights into how **algorithm design, data layout, and CPU architecture** interact. One of the most meaningful lessons was that **SIMD acceleration is not just an “optimization”—it is a redesign of the algorithm around the hardware**. The compiler can optimize scalar loops, but it cannot infer that trajectories should be reorganized into a structure-of-arrays layout, nor can it automatically vectorize multi-stage predictor–corrector schemes with complex dependencies. This deepened our appreciation for SIMD programming.
 
