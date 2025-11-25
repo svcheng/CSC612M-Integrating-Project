@@ -162,7 +162,7 @@ static boolean compare_outputs(double*** A, double*** B, int kmax, int n) {
 int main(void) {
     printf("=================================================== RUN INFO ===================================================\n");
 
-	const int n = 10;          // number of trajectories
+	const int n = 1 << 23;          // number of trajectories
 	const int kmax = 1 << 5;  // number of time steps to be computed
 	printf("Number of trajectories      : %d\n", n);
 	printf("Number of time steps        : %d\n", kmax);
@@ -187,11 +187,8 @@ int main(void) {
     printf("Allocated buffer 1\n");
     double*** tr_asm = alloc_tr(kmax, n);
     printf("Allocated buffer 2\n");
-	double*** tr_simd = alloc_tr(kmax, n);
-	printf("Allocated buffer 3\n");
     reset_trajectories(tr_c, kmax, n);
     reset_trajectories(tr_asm, kmax, n);
-	reset_trajectories(tr_simd, kmax, n);
 
     // FIRST KERNEL: PROGRAM IN C
     c_time = 0.0;
@@ -279,6 +276,5 @@ int main(void) {
     // cleanup
     free_tr(kmax, tr_c);
     free_tr(kmax, tr_asm);
-	free_tr(kmax, tr_simd);
     return 0;
 }
