@@ -1,5 +1,7 @@
 # Parallelizing Heun’s Method for the Lorenz System Using AVX2 SIMD on x86-64 CPUs
 
+Video presentation drive link: https://drive.google.com/file/d/1GIS3QURz-13364nivSqQ12MmHghTCFcJ/view?usp=sharing
+
 ## 1. Project Overview
 
 This project implements a high-performance numerical solver for the **Lorenz system of differential equations** using **Heun’s Method**, featuring three separate kernel implementations:
